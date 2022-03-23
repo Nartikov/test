@@ -1,24 +1,60 @@
-This is free and unencumbered software released into the public domain.
+package main
 
-Anyone is free to copy, modify, publish, use, compile, sell, or
-distribute this software, either in source code form or as a compiled
-binary, for any purpose, commercial or non-commercial, and by any
-means.
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+)
 
-In jurisdictions that recognize copyright laws, the author or authors
-of this software dedicate any and all copyright interest in the
-software to the public domain. We make this dedication for the benefit
-of the public at large and to the detriment of our heirs and
-successors. We intend this dedication to be an overt act of
-relinquishment in perpetuity of all present and future rights to this
-software under copyright law.
+type Weather struct {
+	Name string `json:"name"`
+	Main Main   `json:"main"`
+}
+type Main struct {
+	Temp float32 `json:"temp"`
+}
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-OTHER DEALINGS IN THE SOFTWARE.
+func getWeather(cityName string) (string, error) {
+	key := "d36ae2d09e02a52d8c957339d213d776"
+	url := "https://api.openweathermap.org/data/2.5/weather?q=" + cityName + "&appid=" + key + "&lang=ru&units=metric"
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	var data Weather
+	json.Unmarshal(body, &data)
+	answer := data.Name + " -> " + fmt.Sprintf("%f", data.Main.Temp)
+	return answer, nil
+}
 
-For more information, please refer to <http://unlicense.org>
+func main() {
+	http.HandleFunc("/", HelloHandler)
+
+	fmt.Println("Server started at port 8081")
+	log.Fatal(http.ListenAndServe(":8083", nil))
+	
+}
+func HelloHandler(w http.ResponseWriter, r *http.Request) {
+	city, err := getWeather("Tokyo")
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+	fmt.Println(city)
+	if r.Method == "POST" {
+		r.ParseForm()
+		// они все тут
+		params := r.Form
+		fmt.Println(w, params)
+	}
+	fmt.Fprintf(w, city)
+
+}
+
